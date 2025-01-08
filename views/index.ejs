@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Camera Control</title>
+</head>
+<body>
+    <h1>Camera Control</h1>
+
+    <!-- Buttons to control the camera -->
+    <button id="startCamera">Start Camera</button>
+    <button id="stopCamera">Stop Camera</button>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+
+        // Emit 'start-camera' event when the Start Camera button is clicked
+        document.getElementById('startCamera').addEventListener('click', () => {
+            socket.emit('start-camera');
+        });
+
+        // Emit 'stop-camera' event when the Stop Camera button is clicked
+        document.getElementById('stopCamera').addEventListener('click', () => {
+            socket.emit('stop-camera');
+        });
+    </script>
+</body>
+</html>

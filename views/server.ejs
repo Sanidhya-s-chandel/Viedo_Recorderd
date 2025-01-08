@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Camera Control</title>
+</head>
+<body>
+    <h1>Laptop Server</h1>
+
+    <!-- Video element to preview the camera -->
+    <video id="camera" autoplay playsinline></video>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        const videoElement = document.getElementById('camera');
+        let stream = null;
+        let mediaRecorder = null;
+        let recordedChunks = [];
+
+        // Function to start the camera and begin recording
+        async function startCamera() {
+            try {
+                // Access the laptop's camera
+                stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                videoElement.srcObject = stream;
+                console.log('Camera started');
+
+                // Initialize MediaRecorder
+                mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+
+                // Collect video data chunks
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        recordedChunks.push(event.data);
+                    }
+                };
+
+                // Start recording
+                mediaRecorder.start();
+                console.log('Recording started');
+            } catch (error) {
+                console.error('Error accessing camera:', error);
+            }
+        }
+
+        // Function to stop the camera and recording
+        async function stopCamera() {
+            if (stream) {
+                // Stop all tracks
+                stream.getTracks().forEach(track => track.stop());
+                videoElement.srcObject = null;
+                console.log('Camera stopped');
+            }
+
+            if (mediaRecorder) {
+                // Stop recording
+                mediaRecorder.stop();
+                console.log('Recording stopped');
+
+                // Save the video file
+                mediaRecorder.onstop = async () => {
+                    const blob = new Blob(recordedChunks, { type: 'video/webm' });
+                    const reader = new FileReader();
+
+                    reader.onloadend = async () => {
+                        const base64data = reader.result.split(',')[1];
+                        try {
+                            await fetch('/save-video', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ videoData: base64data }),
+                            });
+                            console.log('Video saved successfully');
+                        } catch (error) {
+                            console.error('Error saving video:', error);
+                        }
+                    };
+
+                    reader.readAsDataURL(blob);
+                };
+            }
+        }
+
+        // Listen for 'camera-start' event from the server and start the camera
+        socket.on('starting-camera', () => {
+            console.log('Camera-start event received from the server.');
+            startCamera();
+        });
+
+        // Listen for 'camera-stop' event from the server and stop the camera
+        socket.on('stoping-camera', () => {
+            console.log('Camera-stop event received from the server.');
+            stopCamera();
+        });
+    </script>
+</body>
+</html>
